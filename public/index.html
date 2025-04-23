@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Catalog with Admin Panel and Chat</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <h1>Product Catalog</h1>
+    <div id="product-cards"></div>
+
+    <h2>Chat</h2>
+    <select id="role-select">
+        <option value="customer">Customer</option>
+        <option value="admin">Admin</option>
+    </select>
+    <div id="chat-messages" style="border: 1px solid #ccc; padding: 10px; height: 200px; overflow-y: scroll;"></div>
+    <input id="chat-input" type="text" placeholder="Type your message here">
+    <button id="send-btn">Send</button>
+
+    <h2>Admin Panel</h2>
+    <form id="admin-form">
+        <input id="product-title" type="text" placeholder="Title" required>
+        <input id="product-price" type="number" placeholder="Price" required>
+        <textarea id="product-description" placeholder="Description"></textarea>
+        <button type="submit">Add Product</button>
+    </form>
+
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Fetch products using GraphQL
+            const fetchProducts = async () => {
+                const response = await fetch('http://localhost:8080/graphql', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        query: `{
+                            products {
+                                title
+                                price
+                            }
+                        }`
+                    }),
+                });
+                const { data } = await response.json();
+                const productCards = document.getElementById('product-cards');
+                data.products.forEach(product => {
+                    const card = document.createElement('div');
+                    card.className = 'product-card';
+                    card.innerHTML = `
+                        <h2>${product.title}</h2>
+                        <p>Price: $${product.price}</p>
+                    `;
+                    productCards.appendChild(card);
+                });
+            };
+
+            // Chat functionality
+            const socket = io('http://localhost:8080');
+            const roleSelect = document.getElementById('role-select');
+            const chatInput = document.getElementById('chat-input');
+            const sendBtn = document.getElementById('send-btn');
+            const chatMessages = document.getElementById('chat-messages');
+
+            // Присоединение к комнате
+            roleSelect.addEventListener('change', () => {
+                const role = roleSelect.value;
+                socket.emit('joinRoom', role);
+            });
+
+            // Отправка сообщения
+            sendBtn.onclick = () => {
+                const message = chatInput.value.trim();
+                const role = roleSelect.value;
+                if (message) {
+                    socket.emit('chatMessage', { role, message });
+                    chatInput.value = '';
+                }
+            };
+
+            // Отображение истории чата
+            socket.on('chatHistory', (messages) => {
+                chatMessages.innerHTML = ''; // Очищаем чат
+                messages.forEach((msg) => {
+                    appendMessage(msg);
+                });
+            });
+
+            // Отображение нового сообщения
+            socket.on('chatMessage', (msg) => {
+                appendMessage(msg);
+            });
+
+            // Функция для добавления сообщения в чат
+            const appendMessage = (msg) => {
+                const message = document.createElement('div');
+                message.innerHTML = `<strong>${msg.role}:</strong> ${msg.message} <small>${new Date(msg.timestamp).toLocaleTimeString()}</small>`;
+                chatMessages.appendChild(message);
+                chatMessages.scrollTop = chatMessages.scrollHeight; // Прокрутка вниз
+            };
+
+            // Admin panel functionality
+            const adminForm = document.getElementById('admin-form');
+            adminForm.onsubmit = async (e) => {
+                e.preventDefault();
+                const title = document.getElementById('product-title').value;
+                const price = parseFloat(document.getElementById('product-price').value);
+                const description = document.getElementById('product-description').value;
+
+                const response = await fetch('http://localhost:8080/api/products', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ title, price, description }),
+                });
+
+                if (response.ok) {
+                    alert('Product added successfully!');
+                    fetchProducts(); // Refresh product list
+                } else {
+                    alert('Failed to add product.');
+                }
+            };
+
+            fetchProducts();
+        });
+    </script>
+</body>
+</html>

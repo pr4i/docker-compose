@@ -1,0 +1,18 @@
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/app/data
+      - ./public:/app/public
+      - ./server:/app/server
+    environment:
+      - NODE_ENV=production
+
+networks:
+  default:
+    driver: bridge
