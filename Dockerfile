@@ -1,20 +1,20 @@
-FROM node:14
+# Используем стабильный образ Node.js
+FROM node:18
 
-# Set the working directory
-WORKDIR /usr/src/app
+# Рабочая директория внутри контейнера
+WORKDIR /app
 
-# Copy package.json and package-lock.json
-COPY package.json ./
-COPY package-lock.json ./
+# Копируем package.json и lock-файл
+COPY package*.json ./
 
-# Install dependencies
+# Устанавливаем зависимости
 RUN npm install
 
-# Copy the rest of the application files
+# Копируем остальные файлы проекта
 COPY . .
 
-# Expose the port the app runs on
+# Порт, который будет проброшен наружу (можно переопределить при запуске)
 EXPOSE 8080
 
-# Command to run the application
+# Команда запуска (используется переменная окружения PORT)
 CMD ["node", "server/admin.js"]

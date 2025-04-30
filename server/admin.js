@@ -16,38 +16,31 @@ const io = require('socket.io')(server, {
     },
 });
 
+const PORT_ADMIN = process.env.PORT || 8080;
+
 app.use(bodyParser.json());
 app.use(cors());
 
 // REST API для продуктов
 app.use('/api/products', productsRoute);
 
-// Добавляем GraphQL API
+// GraphQL endpoint
 app.use('/graphql', graphqlHTTP({
     schema: schema,
     graphiql: true,
 }));
 
-// Обслуживание статических файлов из папки public
+// Статические файлы (index.html и др.)
 app.use(express.static(path.join(__dirname, '../public')));
 
-// Обработка корневого маршрута
+// Корневой маршрут
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '../public/index.html'));
 });
 
-// Настройка чата
-io.on('connection', (socket) => {
-    console.log('A user connected');
-    socket.on('disconnect', () => {
-        console.log('User disconnected');
-    });
-    socket.on('chatMessage', (msg) => {
-        io.emit('chatMessage', msg);
-    });
-});
+// Инициализация WebSocket-чата
+setupChat(io);
 
-const PORT_ADMIN = process.env.PORT || 8080;
 server.listen(PORT_ADMIN, () => {
     console.log(`Admin API is running on http://localhost:${PORT_ADMIN}`);
 });

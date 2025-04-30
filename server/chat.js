@@ -1,4 +1,3 @@
-const socketIo = require('socket.io');
 const fs = require('fs');
 const path = require('path');
 
@@ -9,19 +8,26 @@ const messagesFilePath = path.join(__dirname, '../data/messages.json');
 const loadMessages = () => {
     if (fs.existsSync(messagesFilePath)) {
         const data = fs.readFileSync(messagesFilePath, 'utf8');
-        return JSON.parse(data);
+        try {
+            return JSON.parse(data);
+        } catch (err) {
+            console.error('Error parsing messages JSON:', err);
+            return [];
+        }
     }
     return [];
 };
 
 // Функция для сохранения сообщений в файл
 const saveMessages = (messages) => {
-    fs.writeFileSync(messagesFilePath, JSON.stringify(messages, null, 2));
+    try {
+        fs.writeFileSync(messagesFilePath, JSON.stringify(messages, null, 2));
+    } catch (err) {
+        console.error('Error saving messages to file:', err);
+    }
 };
 
-module.exports = function (server) {
-    const io = socketIo(server);
-
+module.exports = function (io) {
     // Загружаем сообщения из файла
     const messages = loadMessages();
 
@@ -43,10 +49,18 @@ module.exports = function (server) {
 
         // Обработка нового сообщения
         socket.on('chatMessage', (msg) => {
+            console.log('Received message:', msg);
+
+            // Проверяем корректность данных
+            if (!msg || !msg.role || !msg.message) {
+                console.log('Invalid message data received:', msg);
+                return;
+            }
+
             const { role, message } = msg;
+            const chatMessage = { role, message, timestamp: new Date().toISOString() };
 
             // Сохраняем сообщение
-            const chatMessage = { role, message, timestamp: new Date().toISOString() };
             messages.push(chatMessage);
             saveMessages(messages); // Сохраняем сообщения в файл
 
